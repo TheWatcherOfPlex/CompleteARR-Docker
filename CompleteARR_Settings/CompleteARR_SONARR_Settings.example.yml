@@ -1,0 +1,103 @@
+#####################################################################
+# CompleteARR_SONARR_Settings.yml
+# Global configuration for the CompleteARR Sonarr auto-promotion script.
+# Edit values in this file to match your environment.
+#
+# 💡 TIP: NOT SURE WHICH PROFILES OR FOLDERS TO USE?
+# Run 'CompleteARR_FetchInfo_Launcher.ps1' to generate a log file
+# containing all your valid Quality Profile Names and Root Paths!
+#####################################################################
+
+Sonarr:
+  Url: http://localhost:8989            # Base URL of your Sonarr server (no trailing '/')
+  ApiKey: YOUR_API_KEY_HERE             # Sonarr API key from Settings > General
+
+Logging:
+  LogFileName: CompleteARR.log          # Base log file name; timestamp is added automatically
+  LogToConsole: true                    # Write colored logs to the console window
+  LogToFile: true                       # Write detailed logs to a log file in the same folder as the scripts
+  MinLevel: Debug                       # Minimum level to log: Debug | Info | Warning | Error | Success
+  UseColors: true                       # Enable colored console output
+  ThrottleMs: 200                       # Delay in milliseconds between Sonarr API calls (helps avoid overload)
+
+Behavior:
+  DryRun: true                          # If true, NO CHANGES are sent to Sonarr; logs only what would happen
+  GraceDays: 15                         # Days to wait after an episode's air date before DEMOTING a "complete" show
+  PreflightSeconds: 0                   # Optional delay in seconds before the script starts doing work
+  PostMoveWaitSeconds: 2                # Optional short delay after changing a series (helps Sonarr settle)
+  MonitorNonSpecials: true              # Always monitor all seasons/episodes that are NOT specials (Season 0)
+  UnmonitorSpecialsWhenIncomplete: true # In "Incomplete" profiles, specials will be UNmonitored
+  MonitorSpecialsWhenComplete: true     # In "Complete" profiles, all specials will be monitored
+  SpecialsDoNotBlockCompletion: true    # Specials are ignored when deciding if a show is "complete"
+  TreatUnknownAirDateAsOld: false       # If true, episodes with NO air date are treated as older than graceDays when demoting *Leave this on false*
+  MoveVerification:
+    MoveVerifyEnabled: true             # Enable verification after Sonarr move operations
+    MoveVerifyMode: sonarr              # sonarr | filesystem | both (sonarr is safest when using Docker paths)
+    MoveVerifyRetries: 3                # Number of verification retries after initial move
+    MoveVerifyDelaySeconds: 5           # Delay before first verification attempt
+    MoveVerifyBackoffSeconds: 2         # Additional seconds added between retries
+    MoveVerifyReattemptMove: true       # Re-issue the move command if verification fails
+    MoveVerifyRevertOnFailure: true     # Revert Sonarr path to original if verification never succeeds
+
+#####################################################################
+# Sets: map relationships between INCOMPLETE and COMPLETE quality profiles / root folders.
+# You have have as many sets as you like, the config below is just what I use.
+#
+# Each set describes a "media type", AKA set name. This is only used for logging. Your Plex/Jellyfin/Emby users wont see your sets.
+# - The "Incomplete" profile/root is where shows go if they have missing episodes.
+# - Once all non-special episodes are downloaded, the show is promoted to the corresponding "Complete" quality profile / root folder.
+# - Your Plex/Jellyfin/Emby library should only point to the COMPLETE root folders for each media type.
+# - If missing episodes appear and are older than GraceDays, the show is demoted to the "Incomplete" quality profile / root folder. and the cycle starts again.
+#
+# Run Fetchinfo.ps1 to get your Quality Profile names and Root Paths
+# Uncomment the Sets section below and edit to match your FetchInfo results.
+#####################################################################
+
+Sets:
+  - Media Type: Adult (HD)
+    Incomplete Profile Name: Incomplete - Adult
+    Incomplete Root Folder: /data/Media/Show Collection - Incomplete Default
+    Complete Profile Name: Complete - Adult
+    Complete Root Folder: /data/Media/Show Collection - Adult
+
+  - Media Type: Adult (UHD)
+    Incomplete Profile Name: Incomplete - Adult UHD
+    Incomplete Root Folder: /data/Media/Show Collection - Incomplete Default
+    Complete Profile Name: Complete - Adult UHD
+    Complete Root Folder: /data/Media/Show Collection - Adult
+
+  - Media Type: Family (HD)
+    Incomplete Profile Name: Incomplete - Family
+    Incomplete Root Folder: /data/Media/Show Collection - Incomplete Family
+    Complete Profile Name: Complete - Family
+    Complete Root Folder: /data/Media/Show Collection - Family
+
+  - Media Type: Family (UHD)
+    Incomplete Profile Name: Incomplete - Family UHD
+    Incomplete Root Folder: /data/Media/Show Collection - Incomplete Family
+    Complete Profile Name: Complete - Family UHD
+    Complete Root Folder: /data/Media/Show Collection - Family
+
+  - Media Type: Anime (HD)
+    Incomplete Profile Name: Incomplete - Anime
+    Incomplete Root Folder: /data/Media/Show Collection - Incomplete Anime
+    Complete Profile Name: Complete - Anime
+    Complete Root Folder: /data/Media/Show Collection - Anime Adult
+
+  - Media Type: Anime (UHD)
+    Incomplete Profile Name: Incomplete - Anime UHD
+    Incomplete Root Folder: /data/Media/Show Collection - Incomplete Anime
+    Complete Profile Name: Complete - Anime UHD
+    Complete Root Folder: /data/Media/Show Collection - Anime Adult
+
+  - Media Type: Anime Family (HD)
+    Incomplete Profile Name: Incomplete - Anime Family
+    Incomplete Root Folder: /data/Media/Show Collection - Incomplete Anime
+    Complete Profile Name: Complete - Anime Family
+    Complete Root Folder: /data/Media/Show Collection - Anime Family
+
+  - Media Type: Anime Family (UHD)
+    Incomplete Profile Name: Incomplete - Anime Family UHD
+    Incomplete Root Folder: /data/Media/Show Collection - Incomplete Anime
+    Complete Profile Name: Complete - Anime Family UHD
+    Complete Root Folder: /data/Media/Show Collection - Anime Family

@@ -1,0 +1,60 @@
+#####################################################################
+# CompleteARR_RADARR_Settings.yml
+# Global configuration for the CompleteARR Radarr FilmEngine script.
+# Edit values in this file to match your environment.
+#
+# 💡 TIP: NOT SURE WHICH PROFILES OR FOLDERS TO USE?
+# Run 'CompleteARR_FetchInfo_Launcher.ps1' to generate a log file
+# containing all your valid Quality Profile Names and Root Paths!
+#####################################################################
+
+Radarr:
+  Url: http://localhost:7878            # Base URL of your Radarr server (no trailing '/')
+  ApiKey: YOUR_API_KEY_HERE             # Radarr API key from Settings > General
+
+Logging:
+  LogFileName: CompleteARR.log          # Base log file name; timestamp is added automatically
+  LogToConsole: true                    # Write colored logs to the console window
+  LogToFile: true                       # Write detailed logs to a log file in the same folder as the scripts
+  MinLevel: Debug                       # Minimum level to log: Debug | Info | Warning | Error | Success
+  UseColors: true                       # Enable colored console output
+  ThrottleMs: 200                       # Delay in milliseconds between Radarr API calls (helps avoid overload)
+
+Behavior:
+  DryRun: true                          # If true, NO CHANGES are sent to Radarr; logs only what would happen
+  PreflightSeconds: 0                   # Optional delay in seconds before the script starts doing work
+  PostMoveWaitSeconds: 0                # Optional short delay after changing a movie (helps Radarr settle)
+  MoveVerification:
+    MoveVerifyEnabled: true             # Enable verification after Radarr move operations
+    MoveVerifyMode: radarr              # radarr | filesystem | both (radarr is safest when using Docker paths)
+    MoveVerifyRetries: 3                # Number of verification retries after initial move
+    MoveVerifyDelaySeconds: 5           # Delay before first verification attempt
+    MoveVerifyBackoffSeconds: 2         # Additional seconds added between retries
+    MoveVerifyReattemptMove: true       # Re-issue the move command if verification fails
+    MoveVerifyRevertOnFailure: true     # Revert Radarr path to original if verification never succeeds
+
+#####################################################################
+# FilmEngine configuration
+#
+# Unlike CompleteARR's SeriesEngine, the FilmEngine does not have incomplete/complete folders.
+# Instead, we enforce that each quality profile has its correct root folder.
+# This ensures movies stay organized in their proper libraries.
+#
+# You can have as many profiles/folders as you like, and even set
+# profiles to share the same roots if you want. 
+# The config below is just what I use.
+#
+# Run Fetchinfo.ps1 to get your Quality Profile names and Root Paths
+# Uncomment the FilmEngine section below and edit to match your FetchInfo results.
+#####################################################################
+
+FilmEngine:
+  Enabled: true
+  ProfileRootMappings: # Quality Profile: Root Folder
+    Adult Default Settings: /data/Media/Movie Collection - Adult
+    Family Default Settings: /data/Media/Movie Collection - Family
+    Anime Default Settings: /data/Media/Movie Collection - Anime Adult
+    Anime Family Default Settings: /data/Media/Movie Collection - Anime Family
+    Kometa: /data/Media/Movie Collection - Adult
+    Unsorted Default Settings: /data/Media/Movie Collection - Adult
+    User Requests: /data/Media/Movie Collection - Adult
