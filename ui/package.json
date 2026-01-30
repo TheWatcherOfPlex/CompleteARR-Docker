@@ -1,0 +1,17 @@
+{
+  "name": "completearr-ui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CompleteARR UI and API",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "express": "^4.21.2",
+    "htm": "^3.1.1",
+    "js-yaml": "^4.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}

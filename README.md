@@ -23,7 +23,7 @@ CompleteARR is an automated media librarian for **Sonarr** and **Radarr**. It ke
 - **PowerShell 7.0** or newer
 
 ### Step 1: Open the Settings YMLs
-Open `CompleteARR_SONARR_Settings.yml` & `CompleteARR_RADARR_Settings.yml` in the `CompleteARR_Settings` folder.
+Open `CompleteARR_SONARR_Settings.yml` and `CompleteARR_RADARR_Settings.yml` in the `CompleteARR_Settings` folder.
 
 ### Step 2: Fill in Your API/IP/Port
 After opening the _Settings.yml files, fill in the API/IP/Port information, but don’t proceed further down the YML yet. **Save** the updated files.
@@ -41,7 +41,7 @@ If the FetchInfo Tool cannot connect to Sonarr or Radarr then there is something
 ### Step 4: Configure Sets (Sonarr) & Mappings (Radarr)
 
 #### 📺 For TV Shows (Sonarr) – Define Your “Sets”
-A “Set” is a pair of **Incomplete** and **Complete** quality profiles & root folders. 
+A “Set” is a pair of **Incomplete** and **Complete** quality profiles & root folders.
 CompleteARR moves shows between them based on episode availability.
 
 Open `CompleteARR_SONARR_Settings.yml` and fill out the `Sets:` section using the data from the FetchInfo log.
@@ -60,7 +60,7 @@ When you match a Quality Profile to a Root Folder with CompleteARR, it automatic
 
 Open `CompleteARR_RADARR_Settings.yml` and fill out the `FilmEngine:` section using the data from the FetchInfo log.
 
-**Format:** 
+**Format:**
 `Quality Profile: Root Folder`
 
 **Example configuration** for separating family and anime content can be found in `CompleteARR_SONARR_Settings.example.yml`.
@@ -78,7 +78,7 @@ Open `CompleteARR_RADARR_Settings.yml` and fill out the `FilmEngine:` section us
 
 ---
 
-## Docker (Optional)
+## 🐳 Docker (Optional)
 
 CompleteARR can run in Docker behind gluetun on a schedule. The container runs CompleteARR once per loop and sleeps for a configurable interval.
 
@@ -127,14 +127,14 @@ docker-compose -f stack.yml up -d
 docker logs -f completearr
 ```
 
-## Tips for Success
+## 💡 Tips for Success
 
 1. **Use the FetchInfo tool** – It makes setup much easier!
 2. **Set up your Plex/Jellyfin libraries** to only include the “Complete” folders
 3. **Run CompleteARR regularly** (set up a scheduled task)
 4. **Check the logs** in the `CompleteARR_Logs` folder if something doesn’t work
 5. **Start with dry runs** by setting `DryRun: true` in your settings
-7. **Set GraceDays** to change how long an episode can be considered released, before it counts against a shows completion status.
+6. **Set GraceDays** to control how long an episode can be considered released before it counts against a show’s completion status.
 
 ---
 
