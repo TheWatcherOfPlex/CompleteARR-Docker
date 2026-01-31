@@ -10,6 +10,8 @@ const PORT = process.env.UI_PORT || 3005;
 const SONARR_SETTINGS = process.env.SONARR_SETTINGS || "/app/CompleteARR_Settings/CompleteARR_SONARR_Settings.yml";
 const RADARR_SETTINGS = process.env.RADARR_SETTINGS || "/app/CompleteARR_Settings/CompleteARR_RADARR_Settings.yml";
 const STATUS_FILE = process.env.STATUS_FILE || "/app/CompleteARR_Logs/run_status.json";
+const LOGS_ROOT = process.env.LOGS_ROOT || "/app/CompleteARR_Logs";
+const MS_IN_DAY = 24 * 60 * 60 * 1000;
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "public")));
@@ -33,6 +35,54 @@ function readYaml(filePath) {
   const raw = fs.readFileSync(filePath, "utf8");
   const data = yaml.load(raw);
   return { raw, data };
+}
+
+function parseSummary(lines, markers) {
+  const summary = {};
+  for (const line of lines) {
+    for (const [key, label] of Object.entries(markers)) {
+      if (line.includes(label)) {
+        const parts = line.split(":");
+        const value = parts[parts.length - 1].trim();
+        const number = Number(value);
+        summary[key] = Number.isFinite(number) ? number : value;
+      }
+    }
+  }
+  return summary;
+}
+
+function collectLogSummaries(prefix, markers, days = 7) {
+  if (!fs.existsSync(LOGS_ROOT)) {
+    return [];
+  }
+  const cutoff = Date.now() - days * MS_IN_DAY;
+  const files = fs
+    .readdirSync(LOGS_ROOT)
+    .filter((name) => name.startsWith(prefix) && name.endsWith(".log"))
+    .sort();
+
+  return files
+    .map((name) => {
+      const fullPath = path.join(LOGS_ROOT, name);
+      const stats = fs.statSync(fullPath);
+      if (stats.mtimeMs < cutoff) {
+        return null;
+      }
+      const raw = fs.readFileSync(fullPath, "utf8");
+      const lines = raw.split(/\r?\n/);
+      const summary = parseSummary(lines, markers);
+      if (!Object.keys(summary).length) {
+        return null;
+      }
+      return {
+        file: name,
+        timestamp: stats.mtime.toISOString(),
+        summary
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
 }
 
 function writeYaml(filePath, data) {
@@ -119,6 +169,35 @@ app.get("/api/about", (req, res) => {
   }
   const content = fs.readFileSync(readmePath, "utf8");
   res.json({ content });
+});
+
+app.get("/api/stats/weekly", (req, res) => {
+  const radarrMarkers = {
+    moviesChecked: "Movies checked",
+    moviesAlreadyCorrect: "Movies already correct",
+    moviesSkipped: "Movies skipped",
+    rootCorrections: "Root corrections",
+    errors: "Errors"
+  };
+
+  const sonarrMarkers = {
+    seriesChecked: "Series checked",
+    incompleteSeriesSeen: "Incomplete series seen",
+    promotions: "Promotions",
+    demotions: "Demotions",
+    specialsMonitored: "Specials monitored",
+    rootCorrections: "Root corrections",
+    errors: "Errors",
+    episodeMonitorChanges: "Episode monitor changes"
+  };
+
+  const radarr = collectLogSummaries("CompleteARR_RADARR_FilmEngine", radarrMarkers, 7);
+  const sonarr = collectLogSummaries("CompleteARR_SONARR_SeriesEngine", sonarrMarkers, 7);
+
+  res.json({
+    radarr,
+    sonarr
+  });
 });
 
 app.get("*", (req, res) => {
