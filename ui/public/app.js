@@ -67,6 +67,7 @@ function App() {
   const sonarrOptionsApi = useApi("/api/options/sonarr", DEFAULT_OPTIONS);
   const radarrOptionsApi = useApi("/api/options/radarr", DEFAULT_OPTIONS);
   const aboutApi = useApi("/api/about", { content: "" });
+  const weeklyStatsApi = useApi("/api/stats/weekly", { radarr: [], sonarr: [] });
 
   const handleInput = (setter, path) => (event) => {
     const value = event.target.type === "number" ? Number(event.target.value) : event.target.value;
@@ -132,6 +133,29 @@ function App() {
   const sharedLogging = sonarrApi.data?.Logging || {};
   const sonarrMoveVerify = sonarrApi.data?.Behavior?.MoveVerification || {};
   const radarrMoveVerify = radarrApi.data?.Behavior?.MoveVerification || {};
+  const weeklyRadarr = weeklyStatsApi.data?.radarr || [];
+  const weeklySonarr = weeklyStatsApi.data?.sonarr || [];
+
+  const weeklySummary = useMemo(() => {
+    const combine = (items, keys) => {
+      const total = {};
+      keys.forEach((key) => (total[key] = 0));
+      items.forEach((item) => {
+        keys.forEach((key) => {
+          const value = Number(item?.summary?.[key] ?? 0);
+          if (!Number.isNaN(value)) {
+            total[key] += value;
+          }
+        });
+      });
+      return total;
+    };
+
+    return {
+      radarr: combine(weeklyRadarr, ["moviesChecked", "moviesSkipped", "rootCorrections", "errors"]),
+      sonarr: combine(weeklySonarr, ["seriesChecked", "promotions", "demotions", "rootCorrections", "errors"])
+    };
+  }, [weeklyRadarr, weeklySonarr]);
 
   const content = useMemo(() => {
     if (view === "home") {
@@ -161,6 +185,48 @@ function App() {
                 <div>${formatDate(statusApi.data.nextRun)}</div>
               </div>
             </div>
+          </div>
+          <div className="card">
+            <h2>7-Day Activity Summary</h2>
+            <div className="grid">
+              <div>
+                <label>Radarr - Movies Checked</label>
+                <div>${weeklySummary.radarr.moviesChecked ?? 0}</div>
+              </div>
+              <div>
+                <label>Radarr - Movies Skipped</label>
+                <div>${weeklySummary.radarr.moviesSkipped ?? 0}</div>
+              </div>
+              <div>
+                <label>Radarr - Root Corrections</label>
+                <div>${weeklySummary.radarr.rootCorrections ?? 0}</div>
+              </div>
+              <div>
+                <label>Radarr - Errors</label>
+                <div>${weeklySummary.radarr.errors ?? 0}</div>
+              </div>
+              <div>
+                <label>Sonarr - Series Checked</label>
+                <div>${weeklySummary.sonarr.seriesChecked ?? 0}</div>
+              </div>
+              <div>
+                <label>Sonarr - Promotions</label>
+                <div>${weeklySummary.sonarr.promotions ?? 0}</div>
+              </div>
+              <div>
+                <label>Sonarr - Demotions</label>
+                <div>${weeklySummary.sonarr.demotions ?? 0}</div>
+              </div>
+              <div>
+                <label>Sonarr - Root Corrections</label>
+                <div>${weeklySummary.sonarr.rootCorrections ?? 0}</div>
+              </div>
+              <div>
+                <label>Sonarr - Errors</label>
+                <div>${weeklySummary.sonarr.errors ?? 0}</div>
+              </div>
+            </div>
+            <p className="help">Totals are aggregated from the last 7 days of CompleteARR logs.</p>
           </div>
         </div>
       `;
@@ -405,24 +471,23 @@ function App() {
           <div className="card">
             <h2>Profile → Root Folder Mappings</h2>
             <p>Choose the correct root folder for each Radarr quality profile.</p>
-            ${radarrProfiles.map((profile) => html`
-              <div className="grid" style=${{ marginBottom: "12px" }} key=${profile}>
-                <div>
-                  <label>Profile Name</label>
-                  <input value=${profile} disabled />
+            <div className="mapping-grid">
+              ${radarrProfiles.map((profile) => html`
+                <div className="mapping-card" key=${profile}>
+                  <div className="mapping-header">${profile}</div>
+                  <div className="mapping-body">
+                    <label>Root Folder</label>
+                    <select
+                      value=${radarrMappings[profile] || ""}
+                      onInput=${handleInput(radarrApi.setData, `FilmEngine.ProfileRootMappings.${profile}`)}
+                    >
+                      <option value="">Select a root</option>
+                      ${radarrRoots.map((root) => html`<option key=${root} value=${root}>${root}</option>`)}
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label>Root Folder</label>
-                  <select
-                    value=${radarrMappings[profile] || ""}
-                    onInput=${handleInput(radarrApi.setData, `FilmEngine.ProfileRootMappings.${profile}`)}
-                  >
-                    <option value="">Select a root</option>
-                    ${radarrRoots.map((root) => html`<option key=${root} value=${root}>${root}</option>`)}
-                  </select>
-                </div>
-              </div>
-            `)}
+              `)}
+            </div>
           </div>
           <div className="actions">
             <button className="primary" onClick=${() => saveSettings("/api/settings/radarr", radarrApi.data, "Radarr settings")}>Save Radarr Settings</button>
@@ -489,9 +554,9 @@ function App() {
     }
 
     return html`
-      <div className="card">
+      <div className="card about-card">
         <h2>About CompleteARR</h2>
-        <textarea readOnly value=${aboutApi.data?.content || "README not loaded."}></textarea>
+        <textarea className="about-text" readOnly value=${aboutApi.data?.content || "README not loaded."}></textarea>
       </div>
     `;
   }, [
@@ -502,13 +567,19 @@ function App() {
     sonarrOptionsApi.data,
     radarrOptionsApi.data,
     sharedLogging,
-    radarrMappings
+    radarrMappings,
+    weeklyRadarr,
+    weeklySonarr,
+    weeklySummary
   ]);
 
   return html`
     <div className="stack">
       <header>
-        <h1>CompleteARR Control Center</h1>
+        <div className="brand">
+          <img className="brand-logo" src="/logo-header.png" alt="CompleteARR" />
+          <h1>CompleteARR Control Center</h1>
+        </div>
         <nav>
           ${NAV_ITEMS.map((item) => html`
             <button key=${item.key} className=${view === item.key ? "active" : ""} onClick=${() => setView(item.key)}>

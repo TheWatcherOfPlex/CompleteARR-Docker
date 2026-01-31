@@ -16,6 +16,18 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.brand-logo {
+  height: 48px;
+  width: auto;
 }
 
 header h1 {
@@ -42,7 +54,7 @@ nav button.active {
 
 main {
   padding: 24px 32px 64px;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
@@ -59,6 +71,31 @@ main {
   padding: 20px;
   margin-bottom: 20px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.mapping-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.mapping-card {
+  border: 1px solid #1f2a44;
+  border-radius: 12px;
+  background: #0f1424;
+  padding: 16px;
+}
+
+.mapping-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: #9fc7ff;
+  margin-bottom: 12px;
+}
+
+.mapping-body label {
+  margin-bottom: 8px;
 }
 
 .card h2 {
@@ -90,6 +127,18 @@ input, select, textarea {
 
 textarea {
   min-height: 120px;
+}
+
+.about-card {
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.about-text {
+  min-height: 520px;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .actions {
