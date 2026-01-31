@@ -41,6 +41,22 @@ const NAV_ITEMS = [
   { key: "about", label: "About" }
 ];
 
+function Toggle({ label, description, value, onChange }) {
+  return html`
+    <div>
+      <label>${label}</label>
+      <div className="toggle">
+        <label className="switch">
+          <input type="checkbox" checked=${!!value} onChange=${(event) => onChange(event.target.checked)} />
+          <span className="slider"></span>
+        </label>
+        <span>${value ? "Enabled" : "Disabled"}</span>
+      </div>
+      ${description ? html`<div className="help">${description}</div>` : ""}
+    </div>
+  `;
+}
+
 function App() {
   const [view, setView] = useState("home");
   const [message, setMessage] = useState("");
@@ -63,6 +79,21 @@ function App() {
         cursor = cursor[key];
       });
       cursor[keys[keys.length - 1]] = value;
+      return next;
+    });
+  };
+
+  const toggleValue = (setter, path) => () => {
+    setter((prev) => {
+      const next = JSON.parse(JSON.stringify(prev || {}));
+      const keys = path.split(".");
+      let cursor = next;
+      keys.slice(0, -1).forEach((key) => {
+        if (!cursor[key]) cursor[key] = {};
+        cursor = cursor[key];
+      });
+      const lastKey = keys[keys.length - 1];
+      cursor[lastKey] = !cursor[lastKey];
       return next;
     });
   };
@@ -99,6 +130,8 @@ function App() {
   const radarrRoots = radarrOptionsApi.data?.rootFolders || [];
   const radarrMappings = radarrApi.data?.FilmEngine?.ProfileRootMappings || {};
   const sharedLogging = sonarrApi.data?.Logging || {};
+  const sonarrMoveVerify = sonarrApi.data?.Behavior?.MoveVerification || {};
+  const radarrMoveVerify = radarrApi.data?.Behavior?.MoveVerification || {};
 
   const content = useMemo(() => {
     if (view === "home") {
@@ -142,11 +175,104 @@ function App() {
               <div>
                 <label>Sonarr URL</label>
                 <input value=${sonarrApi.data?.Sonarr?.Url || ""} onInput=${handleInput(sonarrApi.setData, "Sonarr.Url")} />
+                <div className="help">Base URL for your Sonarr instance (no trailing slash).</div>
               </div>
               <div>
                 <label>Sonarr API Key</label>
                 <input value=${sonarrApi.data?.Sonarr?.ApiKey || ""} onInput=${handleInput(sonarrApi.setData, "Sonarr.ApiKey")} />
+                <div className="help">Find this in Sonarr → Settings → General.</div>
               </div>
+            </div>
+          </div>
+          <div className="card">
+            <h2>Sonarr Behavior</h2>
+            <div className="grid">
+              ${Toggle({
+                label: "Dry Run",
+                description: "When enabled, no changes are sent to Sonarr. Use this to test safely.",
+                value: sonarrApi.data?.Behavior?.DryRun,
+                onChange: (val) => handleInput(sonarrApi.setData, "Behavior.DryRun")({ target: { value: val } })
+              })}
+              <div>
+                <label>Grace Days</label>
+                <input type="number" value=${sonarrApi.data?.Behavior?.GraceDays ?? 15} onInput=${handleInput(sonarrApi.setData, "Behavior.GraceDays")} />
+                <div className="help">Days after air date before a show is considered incomplete.</div>
+              </div>
+              <div>
+                <label>Preflight Seconds</label>
+                <input type="number" value=${sonarrApi.data?.Behavior?.PreflightSeconds ?? 0} onInput=${handleInput(sonarrApi.setData, "Behavior.PreflightSeconds")} />
+                <div className="help">Delay before starting work (useful for throttling on startup).</div>
+              </div>
+              <div>
+                <label>Post Move Wait</label>
+                <input type="number" value=${sonarrApi.data?.Behavior?.PostMoveWaitSeconds ?? 2} onInput=${handleInput(sonarrApi.setData, "Behavior.PostMoveWaitSeconds")} />
+                <div className="help">Wait time after a move to let Sonarr settle.</div>
+              </div>
+              ${Toggle({
+                label: "Monitor Non-Specials",
+                description: "Always monitor seasons and episodes that are not specials.",
+                value: sonarrApi.data?.Behavior?.MonitorNonSpecials,
+                onChange: (val) => handleInput(sonarrApi.setData, "Behavior.MonitorNonSpecials")({ target: { value: val } })
+              })}
+              ${Toggle({
+                label: "Unmonitor Specials When Incomplete",
+                description: "When in an incomplete profile, specials will be unmonitored.",
+                value: sonarrApi.data?.Behavior?.UnmonitorSpecialsWhenIncomplete,
+                onChange: (val) => handleInput(sonarrApi.setData, "Behavior.UnmonitorSpecialsWhenIncomplete")({ target: { value: val } })
+              })}
+              ${Toggle({
+                label: "Monitor Specials When Complete",
+                description: "When in a complete profile, specials will be monitored.",
+                value: sonarrApi.data?.Behavior?.MonitorSpecialsWhenComplete,
+                onChange: (val) => handleInput(sonarrApi.setData, "Behavior.MonitorSpecialsWhenComplete")({ target: { value: val } })
+              })}
+              ${Toggle({
+                label: "Specials Do Not Block Completion",
+                description: "Ignore specials when deciding if a show is complete.",
+                value: sonarrApi.data?.Behavior?.SpecialsDoNotBlockCompletion,
+                onChange: (val) => handleInput(sonarrApi.setData, "Behavior.SpecialsDoNotBlockCompletion")({ target: { value: val } })
+              })}
+            </div>
+          </div>
+          <div className="card">
+            <h2>Sonarr Move Verification</h2>
+            <div className="grid">
+              ${Toggle({
+                label: "Enable Verification",
+                description: "Verify move operations after Sonarr updates.",
+                value: sonarrMoveVerify.MoveVerifyEnabled,
+                onChange: (val) => handleInput(sonarrApi.setData, "Behavior.MoveVerification.MoveVerifyEnabled")({ target: { value: val } })
+              })}
+              <div>
+                <label>Mode</label>
+                <select value=${sonarrMoveVerify.MoveVerifyMode || "sonarr"} onInput=${handleInput(sonarrApi.setData, "Behavior.MoveVerification.MoveVerifyMode")}>
+                  ${["sonarr", "filesystem", "both"].map((mode) => html`<option key=${mode} value=${mode}>${mode}</option>`)}
+                </select>
+              </div>
+              <div>
+                <label>Retries</label>
+                <input type="number" value=${sonarrMoveVerify.MoveVerifyRetries ?? 3} onInput=${handleInput(sonarrApi.setData, "Behavior.MoveVerification.MoveVerifyRetries")} />
+              </div>
+              <div>
+                <label>Delay (sec)</label>
+                <input type="number" value=${sonarrMoveVerify.MoveVerifyDelaySeconds ?? 5} onInput=${handleInput(sonarrApi.setData, "Behavior.MoveVerification.MoveVerifyDelaySeconds")} />
+              </div>
+              <div>
+                <label>Backoff (sec)</label>
+                <input type="number" value=${sonarrMoveVerify.MoveVerifyBackoffSeconds ?? 2} onInput=${handleInput(sonarrApi.setData, "Behavior.MoveVerification.MoveVerifyBackoffSeconds")} />
+              </div>
+              ${Toggle({
+                label: "Reattempt Move",
+                description: "Retry the move if verification fails.",
+                value: sonarrMoveVerify.MoveVerifyReattemptMove,
+                onChange: (val) => handleInput(sonarrApi.setData, "Behavior.MoveVerification.MoveVerifyReattemptMove")({ target: { value: val } })
+              })}
+              ${Toggle({
+                label: "Revert On Failure",
+                description: "Revert to the original path if verification fails.",
+                value: sonarrMoveVerify.MoveVerifyRevertOnFailure,
+                onChange: (val) => handleInput(sonarrApi.setData, "Behavior.MoveVerification.MoveVerifyRevertOnFailure")({ target: { value: val } })
+              })}
             </div>
           </div>
           ${sets.map((set, index) => html`
@@ -205,11 +331,75 @@ function App() {
               <div>
                 <label>Radarr URL</label>
                 <input value=${radarrApi.data?.Radarr?.Url || ""} onInput=${handleInput(radarrApi.setData, "Radarr.Url")} />
+                <div className="help">Base URL for your Radarr instance (no trailing slash).</div>
               </div>
               <div>
                 <label>Radarr API Key</label>
                 <input value=${radarrApi.data?.Radarr?.ApiKey || ""} onInput=${handleInput(radarrApi.setData, "Radarr.ApiKey")} />
+                <div className="help">Find this in Radarr → Settings → General.</div>
               </div>
+            </div>
+          </div>
+          <div className="card">
+            <h2>Radarr Behavior</h2>
+            <div className="grid">
+              ${Toggle({
+                label: "Dry Run",
+                description: "When enabled, no changes are sent to Radarr. Use this to test safely.",
+                value: radarrApi.data?.Behavior?.DryRun,
+                onChange: (val) => handleInput(radarrApi.setData, "Behavior.DryRun")({ target: { value: val } })
+              })}
+              <div>
+                <label>Preflight Seconds</label>
+                <input type="number" value=${radarrApi.data?.Behavior?.PreflightSeconds ?? 0} onInput=${handleInput(radarrApi.setData, "Behavior.PreflightSeconds")} />
+                <div className="help">Delay before starting work (useful for throttling on startup).</div>
+              </div>
+              <div>
+                <label>Post Move Wait</label>
+                <input type="number" value=${radarrApi.data?.Behavior?.PostMoveWaitSeconds ?? 0} onInput=${handleInput(radarrApi.setData, "Behavior.PostMoveWaitSeconds")} />
+                <div className="help">Wait time after a move to let Radarr settle.</div>
+              </div>
+            </div>
+          </div>
+          <div className="card">
+            <h2>Radarr Move Verification</h2>
+            <div className="grid">
+              ${Toggle({
+                label: "Enable Verification",
+                description: "Verify move operations after Radarr updates.",
+                value: radarrMoveVerify.MoveVerifyEnabled,
+                onChange: (val) => handleInput(radarrApi.setData, "Behavior.MoveVerification.MoveVerifyEnabled")({ target: { value: val } })
+              })}
+              <div>
+                <label>Mode</label>
+                <select value=${radarrMoveVerify.MoveVerifyMode || "radarr"} onInput=${handleInput(radarrApi.setData, "Behavior.MoveVerification.MoveVerifyMode")}>
+                  ${["radarr", "filesystem", "both"].map((mode) => html`<option key=${mode} value=${mode}>${mode}</option>`)}
+                </select>
+              </div>
+              <div>
+                <label>Retries</label>
+                <input type="number" value=${radarrMoveVerify.MoveVerifyRetries ?? 3} onInput=${handleInput(radarrApi.setData, "Behavior.MoveVerification.MoveVerifyRetries")} />
+              </div>
+              <div>
+                <label>Delay (sec)</label>
+                <input type="number" value=${radarrMoveVerify.MoveVerifyDelaySeconds ?? 5} onInput=${handleInput(radarrApi.setData, "Behavior.MoveVerification.MoveVerifyDelaySeconds")} />
+              </div>
+              <div>
+                <label>Backoff (sec)</label>
+                <input type="number" value=${radarrMoveVerify.MoveVerifyBackoffSeconds ?? 2} onInput=${handleInput(radarrApi.setData, "Behavior.MoveVerification.MoveVerifyBackoffSeconds")} />
+              </div>
+              ${Toggle({
+                label: "Reattempt Move",
+                description: "Retry the move if verification fails.",
+                value: radarrMoveVerify.MoveVerifyReattemptMove,
+                onChange: (val) => handleInput(radarrApi.setData, "Behavior.MoveVerification.MoveVerifyReattemptMove")({ target: { value: val } })
+              })}
+              ${Toggle({
+                label: "Revert On Failure",
+                description: "Revert to the original path if verification fails.",
+                value: radarrMoveVerify.MoveVerifyRevertOnFailure,
+                onChange: (val) => handleInput(radarrApi.setData, "Behavior.MoveVerification.MoveVerifyRevertOnFailure")({ target: { value: val } })
+              })}
             </div>
           </div>
           <div className="card">
@@ -250,17 +440,38 @@ function App() {
             <div>
               <label>Log File Name</label>
               <input value=${sharedLogging.LogFileName || "CompleteARR.log"} onInput=${handleInput(sonarrApi.setData, "Logging.LogFileName")} />
+              <div className="help">Base name for all log files (timestamps are appended).</div>
             </div>
             <div>
               <label>Minimum Log Level</label>
               <select value=${sharedLogging.MinLevel || "Debug"} onInput=${handleInput(sonarrApi.setData, "Logging.MinLevel")}>
                 ${["Debug", "Info", "Warning", "Error", "Success"].map((level) => html`<option key=${level} value=${level}>${level}</option>`)}
               </select>
+              <div className="help">Controls the verbosity of logging output.</div>
             </div>
             <div>
               <label>Throttle (ms)</label>
               <input type="number" value=${sharedLogging.ThrottleMs ?? 200} onInput=${handleInput(sonarrApi.setData, "Logging.ThrottleMs")} />
+              <div className="help">Delay between API calls to avoid overwhelming Sonarr/Radarr.</div>
             </div>
+            ${Toggle({
+              label: "Log to Console",
+              description: "Write colored logs to the console output.",
+              value: sharedLogging.LogToConsole,
+              onChange: (val) => handleInput(sonarrApi.setData, "Logging.LogToConsole")({ target: { value: val } })
+            })}
+            ${Toggle({
+              label: "Log to File",
+              description: "Write detailed logs to the CompleteARR_Logs folder.",
+              value: sharedLogging.LogToFile,
+              onChange: (val) => handleInput(sonarrApi.setData, "Logging.LogToFile")({ target: { value: val } })
+            })}
+            ${Toggle({
+              label: "Use Colors",
+              description: "Enable colored log output in the console.",
+              value: sharedLogging.UseColors,
+              onChange: (val) => handleInput(sonarrApi.setData, "Logging.UseColors")({ target: { value: val } })
+            })}
           </div>
           <div className="actions">
             <button

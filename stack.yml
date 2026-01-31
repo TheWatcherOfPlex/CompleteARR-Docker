@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  completearr:
+    build: .
+    container_name: completearr
+    environment:
+      - TZ=America/Chicago
+      - RUN_INTERVAL_SECONDS=3600
+    volumes:
+      - /srv/docker/CompleteARR/Settings:/app/CompleteARR_Settings
+      - /srv/docker/CompleteARR/Logs:/app/CompleteARR_Logs
+      - /mnt/win_data/Data:/data
+    ports:
+      - "3005:3005"
