@@ -136,7 +136,7 @@ function App() {
   const content = useMemo(() => {
     if (view === "home") {
       return html`
-        <>
+        <div className="stack">
           <div className="card">
             <h2>Welcome</h2>
             <p>Use the tabs above to configure Sonarr, Radarr, and shared settings. Changes are saved to your YAML files.</p>
@@ -162,13 +162,13 @@ function App() {
               </div>
             </div>
           </div>
-        </>
+        </div>
       `;
     }
 
     if (view === "sonarr") {
       return html`
-        <>
+        <div className="stack">
           <div className="card">
             <h2>Sonarr Connection</h2>
             <div className="grid">
@@ -318,13 +318,13 @@ function App() {
             <button className="ghost" onClick=${addSet}>+ Add Set</button>
             <button className="primary" onClick=${() => saveSettings("/api/settings/sonarr", sonarrApi.data, "Sonarr settings")}>Save Sonarr Settings</button>
           </div>
-        </>
+        </div>
       `;
     }
 
     if (view === "radarr") {
       return html`
-        <>
+        <div className="stack">
           <div className="card">
             <h2>Radarr Connection</h2>
             <div className="grid">
@@ -427,7 +427,7 @@ function App() {
           <div className="actions">
             <button className="primary" onClick=${() => saveSettings("/api/settings/radarr", radarrApi.data, "Radarr settings")}>Save Radarr Settings</button>
           </div>
-        </>
+        </div>
       `;
     }
 
@@ -506,7 +506,7 @@ function App() {
   ]);
 
   return html`
-    <>
+    <div className="stack">
       <header>
         <h1>CompleteARR Control Center</h1>
         <nav>
@@ -522,8 +522,8 @@ function App() {
         <h2>${NAV_ITEMS.find((item) => item.key === view)?.label}</h2>
         ${content}
       </main>
-    </>
+    </div>
   `;
 }
 
-ReactDOM.createRoot(document.getElementById("app")).render(html`<${App} />`);
+ReactDOM.render(html`<${App} />`, document.getElementById("app"));
