@@ -20,6 +20,13 @@ param(
     [string]$RadarrConfigPath
 )
 
+function Wait-IfInteractive {
+    param([string]$Prompt)
+    # In Docker/UI runs we must not block on Read-Host.
+    if ($env:COMPLETEARR_NO_PAUSE -eq '1') { return }
+    Read-Host $Prompt
+}
+
 # ------------------------------------------------------------
 # Resolve paths
 # ------------------------------------------------------------
@@ -76,7 +83,7 @@ if (-not (Test-Path -LiteralPath $SonarrEnginePath)) {
 }
 
 if (-not $allScriptsExist) {
-    Read-Host "Press ENTER to close this window"
+    Wait-IfInteractive "Press ENTER to close this window"
     exit 1
 }
 
@@ -284,4 +291,4 @@ Write-Host " 🎉 CompleteARR Master Summary Complete!" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 
-Read-Host "Press ENTER to close this window:"
+Wait-IfInteractive "Press ENTER to close this window:"

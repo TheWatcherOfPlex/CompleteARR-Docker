@@ -7,11 +7,57 @@ const axios = require("axios");
 const app = express();
 const PORT = process.env.UI_PORT || 3005;
 
-const SONARR_SETTINGS = process.env.SONARR_SETTINGS || "/app/CompleteARR_Settings/CompleteARR_SONARR_Settings.yml";
-const RADARR_SETTINGS = process.env.RADARR_SETTINGS || "/app/CompleteARR_Settings/CompleteARR_RADARR_Settings.yml";
-const STATUS_FILE = process.env.STATUS_FILE || "/app/CompleteARR_Logs/run_status.json";
-const LOGS_ROOT = process.env.LOGS_ROOT || "/app/CompleteARR_Logs";
+const APP_ROOT = process.env.APP_ROOT || "/app";
+
+const SONARR_SETTINGS =
+  process.env.SONARR_SETTINGS || path.join(APP_ROOT, "CompleteARR_Settings", "CompleteARR_SONARR_Settings.yml");
+const RADARR_SETTINGS =
+  process.env.RADARR_SETTINGS || path.join(APP_ROOT, "CompleteARR_Settings", "CompleteARR_RADARR_Settings.yml");
+
+const LOGS_BASE = process.env.LOGS_BASE || path.join(APP_ROOT, "CompleteARR_Logs");
+const FULL_LOGS_DIR = process.env.FULL_LOGS_DIR || path.join(LOGS_BASE, "Full Logs");
+const ERROR_LOGS_DIR = process.env.ERROR_LOGS_DIR || path.join(LOGS_BASE, "Error Logs");
+const STATUS_FILE = process.env.STATUS_FILE || path.join(LOGS_BASE, "run_status.json");
+const RUN_LOCK_DIR = process.env.RUN_LOCK_DIR || path.join(LOGS_BASE, "run.lock");
+// LOGS_ROOT is where the UI reads *full* logs for summaries.
+const LOGS_ROOT = process.env.LOGS_ROOT || FULL_LOGS_DIR;
 const MS_IN_DAY = 24 * 60 * 60 * 1000;
+
+for (const dir of [LOGS_BASE, FULL_LOGS_DIR, ERROR_LOGS_DIR]) {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}
+
+function writeStatus(status, startedAt, finishedAt, nextRun) {
+  const payload = {
+    status,
+    startedAt: startedAt || null,
+    finishedAt: finishedAt || null,
+    nextRun: nextRun || null
+  };
+  fs.writeFileSync(STATUS_FILE, JSON.stringify(payload));
+}
+
+function tryAcquireLock() {
+  try {
+    fs.mkdirSync(RUN_LOCK_DIR);
+    return true;
+  } catch (error) {
+    if (error && error.code === "EEXIST") {
+      return false;
+    }
+    throw error;
+  }
+}
+
+function releaseLock() {
+  try {
+    fs.rmdirSync(RUN_LOCK_DIR);
+  } catch (error) {
+    // ignore
+  }
+}
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "public")));
@@ -143,6 +189,50 @@ app.get("/api/status", (req, res) => {
   }
   const raw = fs.readFileSync(STATUS_FILE, "utf8");
   return res.json(JSON.parse(raw));
+});
+
+app.post("/api/run-now", (req, res) => {
+  if (!tryAcquireLock()) {
+    return res.status(409).json({ error: "Run already in progress." });
+  }
+
+  let nextRun = null;
+  if (fs.existsSync(STATUS_FILE)) {
+    try {
+      const current = JSON.parse(fs.readFileSync(STATUS_FILE, "utf8"));
+      nextRun = current?.nextRun || null;
+    } catch (error) {
+      nextRun = null;
+    }
+  }
+
+  const startedAt = new Date().toISOString();
+  writeStatus("running", startedAt, null, nextRun);
+
+  const { spawn } = require("child_process");
+  const child = spawn(
+    "pwsh",
+    ["./CompleteARR_Launchers/CompleteARR_Launch_All_Scripts.ps1"],
+    {
+      cwd: APP_ROOT,
+      env: { ...process.env, COMPLETEARR_NO_PAUSE: "1" },
+      stdio: "ignore"
+    }
+  );
+
+  child.on("exit", () => {
+    const finishedAt = new Date().toISOString();
+    writeStatus("idle", startedAt, finishedAt, nextRun);
+    releaseLock();
+  });
+
+  child.on("error", (error) => {
+    const finishedAt = new Date().toISOString();
+    writeStatus("idle", startedAt, finishedAt, nextRun);
+    releaseLock();
+  });
+
+  return res.json({ ok: true });
 });
 
 app.get("/api/settings/sonarr", (req, res) => {

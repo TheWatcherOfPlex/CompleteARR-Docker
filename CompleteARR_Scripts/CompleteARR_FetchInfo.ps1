@@ -38,13 +38,43 @@ if (-not $ShowSonarr -and -not $ShowRadarr) {
 # Initialize logging
 $ScriptRoot = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
 $ProjectRoot = Split-Path -Path $ScriptRoot -Parent
-$LogsRoot = Join-Path $ProjectRoot 'CompleteARR_Logs'
-if (-not (Test-Path -LiteralPath $LogsRoot)) {
-    New-Item -Path $LogsRoot -ItemType Directory -Force | Out-Null
+
+$loggingHelpersPath = Join-Path $ScriptRoot 'CompleteARR_Logging.ps1'
+if (Test-Path -LiteralPath $loggingHelpersPath) {
+    . $loggingHelpersPath
 }
 
 $timestamp = (Get-Date).ToString('yyyy-MM-dd_HHmm')
-$logFile = Join-Path $LogsRoot "CompleteARR_FetchInfo_$timestamp.log"
+
+$logsBaseOverride = $null
+try {
+    # If either settings file specifies Logging.LogsRoot, use it.
+    $sonarrConfig = Join-Path $ProjectRoot 'CompleteARR_Settings\CompleteARR_SONARR_Settings.yml'
+    $radarrConfig = Join-Path $ProjectRoot 'CompleteARR_Settings\CompleteARR_RADARR_Settings.yml'
+    if (Test-Path -LiteralPath $sonarrConfig) {
+        $sraw = Get-Content -LiteralPath $sonarrConfig -Raw
+        $scfg = $sraw | ConvertFrom-Yaml
+        if ($scfg?.logging?.logsRoot) { $logsBaseOverride = $scfg.logging.logsRoot }
+    }
+    if (-not $logsBaseOverride -and (Test-Path -LiteralPath $radarrConfig)) {
+        $rraw = Get-Content -LiteralPath $radarrConfig -Raw
+        $rcfg = $rraw | ConvertFrom-Yaml
+        if ($rcfg?.logging?.logsRoot) { $logsBaseOverride = $rcfg.logging.logsRoot }
+    }
+} catch { }
+
+if (Get-Command -Name Initialize-CompleteARRLogPaths -ErrorAction SilentlyContinue) {
+    $paths = Initialize-CompleteARRLogPaths -ScriptRoot $ProjectRoot -ScriptName 'CompleteARR_FetchInfo' -Extension '.log' -LogsBase $logsBaseOverride
+    $logFile = $paths.FullLogFile
+    $errorLogFile = $paths.ErrorLogFile
+} else {
+    $LogsRoot = Join-Path $ProjectRoot 'CompleteARR_Logs'
+    if (-not (Test-Path -LiteralPath $LogsRoot)) {
+        New-Item -Path $LogsRoot -ItemType Directory -Force | Out-Null
+    }
+    $logFile = Join-Path $LogsRoot "CompleteARR_FetchInfo_$timestamp.log"
+    $errorLogFile = Join-Path $LogsRoot "CompleteARR_FetchInfo_${timestamp}_ERRORS.log"
+}
 
 function Write-Log {
     param(
@@ -64,8 +94,15 @@ function Write-Log {
         default   { Write-Host $line -ForegroundColor 'White' }
     }
     
-    # Always write to log file
-    Add-Content -Path $logFile -Value $line
+    # Always write to full log file
+    Add-Content -LiteralPath $logFile -Value $line
+
+    # Write errors to the error-only log as well
+    if ($Level.ToUpperInvariant() -eq 'ERROR') {
+        try {
+            Add-Content -LiteralPath $errorLogFile -Value $line
+        } catch { }
+    }
 }
 
 function Write-ColorOutput {

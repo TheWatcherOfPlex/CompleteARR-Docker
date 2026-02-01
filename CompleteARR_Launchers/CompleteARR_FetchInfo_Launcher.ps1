@@ -15,5 +15,7 @@ if (Test-Path $FetchInfoScript) {
 } else {
     Write-Host "Error: FetchInfo script not found at $FetchInfoScript" -ForegroundColor Red
     Write-Host "Please ensure the CompleteARR_Scripts directory contains CompleteARR_FetchInfo.ps1" -ForegroundColor Yellow
-    Read-Host "Press Enter to exit"
+    if ($env:COMPLETEARR_NO_PAUSE -ne '1') {
+        Read-Host "Press Enter to exit"
+    }
 }

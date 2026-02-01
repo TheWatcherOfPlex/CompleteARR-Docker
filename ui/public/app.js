@@ -4,29 +4,37 @@ const html = htm.bind(React.createElement);
 const DEFAULT_STATUS = { status: "unknown", startedAt: null, finishedAt: null, nextRun: null };
 const DEFAULT_OPTIONS = { profiles: [], rootFolders: [] };
 
-function useApi(path, fallback) {
+function useApi(path, fallback, refreshMs) {
   const [data, setData] = useState(fallback);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
-    fetch(path)
-      .then((res) => res.json())
-      .then((payload) => {
-        if (isMounted) {
-          setData(payload);
-          setError(null);
-        }
-      })
-      .catch((err) => {
-        if (isMounted) {
-          setError(err.message);
-        }
-      });
+    const fetchOnce = () =>
+      fetch(path)
+        .then((res) => res.json())
+        .then((payload) => {
+          if (isMounted) {
+            setData(payload);
+            setError(null);
+          }
+        })
+        .catch((err) => {
+          if (isMounted) {
+            setError(err.message);
+          }
+        });
+
+    fetchOnce();
+    let intervalId = null;
+    if (refreshMs) {
+      intervalId = setInterval(fetchOnce, refreshMs);
+    }
     return () => {
       isMounted = false;
+      if (intervalId) clearInterval(intervalId);
     };
-  }, [path]);
+  }, [path, refreshMs]);
 
   return { data, setData, error };
 }
@@ -60,8 +68,9 @@ function Toggle({ label, description, value, onChange }) {
 function App() {
   const [view, setView] = useState("home");
   const [message, setMessage] = useState("");
+  const [runNowBusy, setRunNowBusy] = useState(false);
 
-  const statusApi = useApi("/api/status", DEFAULT_STATUS);
+  const statusApi = useApi("/api/status", DEFAULT_STATUS, 5000);
   const sonarrApi = useApi("/api/settings/sonarr", {});
   const radarrApi = useApi("/api/settings/radarr", {});
   const sonarrOptionsApi = useApi("/api/options/sonarr", DEFAULT_OPTIONS);
@@ -138,6 +147,25 @@ function App() {
   const latestRadarr = weeklyRadarr[0]?.summary || {};
   const latestSonarr = weeklySonarr[0]?.summary || {};
 
+  const isRunning = statusApi.data.status === "running";
+
+  const runNow = async () => {
+    if (isRunning || runNowBusy) return;
+    setRunNowBusy(true);
+    try {
+      const res = await fetch("/api/run-now", { method: "POST" });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage(payload.error || "Failed to start run.");
+      } else {
+        setMessage("Run started.");
+      }
+      setTimeout(() => setMessage(""), 3000);
+    } finally {
+      setRunNowBusy(false);
+    }
+  };
+
   const weeklySummary = useMemo(() => {
     const combine = (items, keys) => {
       const total = {};
@@ -187,6 +215,12 @@ function App() {
                 <div>${formatDate(statusApi.data.nextRun)}</div>
               </div>
             </div>
+            <div className="actions">
+              <button className="primary" disabled=${isRunning || runNowBusy} onClick=${runNow}>
+                ${isRunning ? "Running" : runNowBusy ? "Starting..." : "Run Now"}
+              </button>
+            </div>
+            <p className="help">Run the full CompleteARR suite immediately (FetchInfo + Radarr + Sonarr). While a run is active the button is disabled.</p>
           </div>
           <div className="card">
             <h2>Last Run Summary</h2>
@@ -547,6 +581,11 @@ function App() {
           <p>These settings apply to both Sonarr and Radarr. Update them here and then save.</p>
           <div className="grid">
             <div>
+              <label>Logs Root</label>
+              <input value=${sharedLogging.LogsRoot || "/app/CompleteARR_Logs"} onInput=${handleInput(sonarrApi.setData, "Logging.LogsRoot")} />
+              <div className="help">Base folder for logs. Full logs go into “Full Logs”, error-only logs into “Error Logs”.</div>
+            </div>
+            <div>
               <label>Log File Name</label>
               <input value=${sharedLogging.LogFileName || "CompleteARR.log"} onInput=${handleInput(sonarrApi.setData, "Logging.LogFileName")} />
               <div className="help">Base name for all log files (timestamps are appended).</div>
@@ -587,7 +626,16 @@ function App() {
               className="primary"
               onClick=${() => Promise.all([
                 saveSettings("/api/settings/sonarr", sonarrApi.data, "Shared settings"),
-                saveSettings("/api/settings/radarr", radarrApi.data, "Shared settings")
+                // Keep Radarr Logging in sync as well.
+                saveSettings(
+                  "/api/settings/radarr",
+                  (() => {
+                    const next = JSON.parse(JSON.stringify(radarrApi.data || {}));
+                    next.Logging = { ...(next.Logging || {}), ...(sonarrApi.data?.Logging || {}) };
+                    return next;
+                  })(),
+                  "Shared settings"
+                )
               ])}
             >
               Save Shared Settings

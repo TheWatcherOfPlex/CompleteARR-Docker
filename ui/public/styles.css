@@ -61,6 +61,15 @@ nav button.active {
   color: #fff;
 }
 
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+button.primary:disabled {
+  background: #2a2242;
+}
+
 main {
   padding: 24px 32px 64px;
   max-width: 1400px;

@@ -42,8 +42,14 @@ $thisScriptPath = $MyInvocation.MyCommand.Path
 $thisScriptDir  = Split-Path -Path $thisScriptPath -Parent
 $Script:CompleteARR_ScriptRoot = Split-Path -Path $thisScriptDir -Parent
 
+$loggingHelpersPath = Join-Path $Script:CompleteARR_ScriptRoot 'CompleteARR_Scripts' 'CompleteARR_Logging.ps1'
+if (Test-Path -LiteralPath $loggingHelpersPath) {
+    . $loggingHelpersPath
+}
+
 $Global:CompleteARR_Config      = $null
 $Global:CompleteARR_LogFilePath = $null
+$Global:CompleteARR_ErrorLogFilePath = $null
 $Global:CompleteARR_LogMinLevel = 'Info'
 $Global:CompleteARR_LogToFile   = $true
 $Global:CompleteARR_LogToConsole= $true
@@ -110,8 +116,9 @@ function Write-Log {
     $timestamp = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
     $line      = "[{0}] [{1}] {2}" -f $timestamp, $levelUpper, $Message
 
-    # Always write to console (color-coded)
-    if ($Global:CompleteARR_UseColors) {
+    # Console output respects LogToConsole
+    if ($Global:CompleteARR_LogToConsole) {
+        if ($Global:CompleteARR_UseColors) {
         $baseColor = $logLevelColors[$levelUpper]
         if (-not $baseColor) { $baseColor = $Host.UI.RawUI.ForegroundColor }
 
@@ -128,16 +135,26 @@ function Write-Log {
                 }
             }
             Write-Host ""  # New line
+            } else {
+                Write-Host $line -ForegroundColor $baseColor
+            }
         } else {
-            Write-Host $line -ForegroundColor $baseColor
+            Write-Host $line
         }
-    } else {
-        Write-Host $line
     }
 
     # File logging still respects logToFile + path
     if ($Global:CompleteARR_LogToFile -and $Global:CompleteARR_LogFilePath) {
-        Add-Content -Path $Global:CompleteARR_LogFilePath -Value $line
+        Add-Content -LiteralPath $Global:CompleteARR_LogFilePath -Value $line
+    }
+
+    # Error-only log (always write errors if we have a path)
+    if ($levelUpper -eq 'ERROR' -and $Global:CompleteARR_ErrorLogFilePath) {
+        if (Get-Command -Name Add-CompleteARRErrorLogLine -ErrorAction SilentlyContinue) {
+            Add-CompleteARRErrorLogLine -ErrorLogPath $Global:CompleteARR_ErrorLogFilePath -Line $line
+        } else {
+            try { Add-Content -LiteralPath $Global:CompleteARR_ErrorLogFilePath -Value $line } catch { }
+        }
     }
 }
 
@@ -174,16 +191,29 @@ function Initialize-LoggingFromConfig {
     $ext       = [System.IO.Path]::GetExtension($logFileName)
     if (-not $ext) { $ext = '.log' }
 
-    $logsRoot = Join-Path $Script:CompleteARR_ScriptRoot 'CompleteARR_Logs'
-    if (-not (Test-Path -LiteralPath $logsRoot)) {
-        New-Item -Path $logsRoot -ItemType Directory -Force | Out-Null
-    }
-
     # Use script-specific name for log file
     $scriptName = "CompleteARR_RADARR_FilmEngine"
-    $logFile = Join-Path $logsRoot ("{0}_{1}{2}" -f $scriptName, $timestamp, $ext)
 
-    $Global:CompleteARR_LogFilePath  = $logFile
+    if (Get-Command -Name Initialize-CompleteARRLogPaths -ErrorAction SilentlyContinue) {
+        $logsBaseOverride = $null
+        if (Get-Command -Name Resolve-CompleteARRLogsBase -ErrorAction SilentlyContinue) {
+            $logsBaseOverride = Resolve-CompleteARRLogsBase -ScriptRoot $Script:CompleteARR_ScriptRoot -Config $Config
+        }
+
+        $paths = Initialize-CompleteARRLogPaths -ScriptRoot $Script:CompleteARR_ScriptRoot -ScriptName $scriptName -Extension $ext -LogsBase $logsBaseOverride
+        $Global:CompleteARR_LogFilePath  = $paths.FullLogFile
+        $Global:CompleteARR_ErrorLogFilePath = $paths.ErrorLogFile
+        $logFile = $paths.FullLogFile
+    }
+    else {
+        $logsRoot = Join-Path $Script:CompleteARR_ScriptRoot 'CompleteARR_Logs'
+        if (-not (Test-Path -LiteralPath $logsRoot)) {
+            New-Item -Path $logsRoot -ItemType Directory -Force | Out-Null
+        }
+        $logFile = Join-Path $logsRoot ("{0}_{1}{2}" -f $scriptName, $timestamp, $ext)
+        $Global:CompleteARR_LogFilePath  = $logFile
+    }
+
     $Global:CompleteARR_LogMinLevel  = if ($logging.minLevel) { $logging.minLevel } else { 'Info' }
     $Global:CompleteARR_LogToFile    = if ($null -ne $logging.logToFile) { $logging.logToFile } else { $true }
     $Global:CompleteARR_LogToConsole = if ($null -ne $logging.logToConsole) { $logging.logToConsole } else { $true }
@@ -193,6 +223,9 @@ function Initialize-LoggingFromConfig {
 
     Write-Log 'FILE' ("Using configuration file: {0}" -f $ConfigPath)
     Write-Log 'FILE' ("Log file: {0}" -f $logFile)
+    if ($Global:CompleteARR_ErrorLogFilePath) {
+        Write-Log 'FILE' ("Error log file: {0}" -f $Global:CompleteARR_ErrorLogFilePath)
+    }
 }
 
 

@@ -13,6 +13,12 @@ Radarr:
   ApiKey: YOUR_API_KEY_HERE             # Radarr API key from Settings > General
 
 Logging:
+  # LogsRoot controls WHERE logs are stored.
+  # - In Docker, use: /app/CompleteARR_Logs
+  # - On Windows (running scripts locally), you can use something like: "X:\\CompleteARR\\Logs"
+  # Full logs will always go into: <LogsRoot>/Full Logs/
+  # Error-only logs will always go into: <LogsRoot>/Error Logs/
+  LogsRoot: /app/CompleteARR_Logs
   LogFileName: CompleteARR.log          # Base log file name; timestamp is added automatically
   LogToConsole: true                    # Write colored logs to the console window
   LogToFile: true                       # Write detailed logs to a log file in the same folder as the scripts

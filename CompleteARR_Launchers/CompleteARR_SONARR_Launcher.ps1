@@ -19,6 +19,12 @@ param(
     [string]$ConfigPath
 )
 
+function Wait-IfInteractive {
+    param([string]$Prompt)
+    if ($env:COMPLETEARR_NO_PAUSE -eq '1') { return }
+    Read-Host $Prompt
+}
+
 # ------------------------------------------------------------
 # Resolve paths
 # ------------------------------------------------------------
@@ -46,7 +52,7 @@ Write-Host ""
 if (-not (Test-Path -LiteralPath $EngineScriptPath)) {
     Write-Host "ERROR: Could not find Engine script at:" -ForegroundColor Red
     Write-Host "  $EngineScriptPath" -ForegroundColor Red
-    Read-Host "Press ENTER to close this window"
+    Wait-IfInteractive "Press ENTER to close this window"
     exit 1
 }
 
@@ -116,4 +122,4 @@ else {
 Write-Host ""
 Write-Host "📁 Log files are saved in: CompleteARR_Logs/" -ForegroundColor Cyan
 Write-Host ""
-Read-Host "Press ENTER to close this window:"
+Wait-IfInteractive "Press ENTER to close this window:"
