@@ -5,50 +5,59 @@
 body {
   margin: 0;
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-  background: #0a0a0f;
-  color: #e6f0ff;
+  background: #050508;
+  color: #f5f7ff;
 }
 
 header {
-  background: #0f111a;
-  border-bottom: 1px solid #1c2233;
-  padding: 20px 32px;
+  background: #0b0b0f;
+  border-bottom: 1px solid #26213a;
+  padding: 28px 32px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
+  text-align: center;
   gap: 24px;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: center;
+  width: 100%;
 }
 
 .brand-logo {
-  height: 48px;
+  height: 180px;
   width: auto;
+  display: block;
+  margin: 0 auto;
 }
 
 header h1 {
   margin: 0;
   font-size: 20px;
-  color: #8fd3ff;
+  color: #91b4ff;
 }
 
 nav button {
   background: transparent;
-  border: 1px solid #2a334a;
-  color: #cfe2ff;
+  border: 1px solid #32284d;
+  color: #cfd6ff;
   padding: 8px 14px;
-  margin-left: 8px;
   border-radius: 8px;
   cursor: pointer;
 }
 
+nav {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
 nav button.active {
-  background: #2d6cdf;
-  border-color: #2d6cdf;
+  background: linear-gradient(135deg, #3656ff, #6a2bff);
+  border-color: #6a2bff;
   color: #fff;
 }
 
@@ -56,6 +65,7 @@ main {
   padding: 24px 32px 64px;
   max-width: 1400px;
   margin: 0 auto;
+  width: 100%;
 }
 
 .stack {
@@ -65,8 +75,8 @@ main {
 }
 
 .card {
-  background: #111626;
-  border: 1px solid #1f2a44;
+  background: #0d0d17;
+  border: 1px solid #28203f;
   border-radius: 12px;
   padding: 20px;
   margin-bottom: 20px;
@@ -81,16 +91,16 @@ main {
 }
 
 .mapping-card {
-  border: 1px solid #1f2a44;
+  border: 1px solid #2a2242;
   border-radius: 12px;
-  background: #0f1424;
+  background: #0a0a14;
   padding: 16px;
 }
 
 .mapping-header {
   font-size: 14px;
   font-weight: 600;
-  color: #9fc7ff;
+  color: #b6a8ff;
   margin-bottom: 12px;
 }
 
@@ -100,7 +110,7 @@ main {
 
 .card h2 {
   margin-top: 0;
-  color: #79c2ff;
+  color: #b695ff;
 }
 
 .grid {
@@ -112,7 +122,7 @@ main {
 label {
   display: block;
   font-size: 13px;
-  color: #9bb3d1;
+  color: #a5adcf;
   margin-bottom: 6px;
 }
 
@@ -120,9 +130,9 @@ input, select, textarea {
   width: 100%;
   padding: 8px 10px;
   border-radius: 8px;
-  border: 1px solid #2a334a;
-  background: #0b1020;
-  color: #e6f0ff;
+  border: 1px solid #2c2445;
+  background: #080810;
+  color: #f5f7ff;
 }
 
 textarea {
@@ -131,7 +141,12 @@ textarea {
 
 .about-card {
   max-width: 100%;
+  width: 100%;
   margin: 0 auto;
+}
+
+main > .about-card {
+  width: 100%;
 }
 
 .about-text {
@@ -148,7 +163,7 @@ textarea {
 }
 
 .primary {
-  background: #2d6cdf;
+  background: linear-gradient(135deg, #3656ff, #6a2bff);
   border: none;
   color: #fff;
   padding: 10px 16px;
@@ -158,8 +173,8 @@ textarea {
 
 .ghost {
   background: transparent;
-  border: 1px solid #2d6cdf;
-  color: #a6c8ff;
+  border: 1px solid #5f50ff;
+  color: #c9c8ff;
   padding: 10px 16px;
   border-radius: 8px;
   cursor: pointer;
@@ -170,21 +185,21 @@ textarea {
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 12px;
-  background: #1d2740;
-  color: #b3c7ff;
+  background: #201a38;
+  color: #d0c9ff;
 }
 
 .warning {
-  color: #ffd27d;
+  color: #ffcc73;
 }
 
 .success {
-  color: #7dff9a;
+  color: #6effb6;
 }
 
 .help {
   font-size: 12px;
-  color: #8aa1c2;
+  color: #8f94b5;
   margin-top: 6px;
 }
 
@@ -214,7 +229,7 @@ textarea {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #2a334a;
+  background-color: #261f3a;
   transition: 0.2s;
   border-radius: 999px;
 }
@@ -226,13 +241,13 @@ textarea {
   width: 20px;
   left: 3px;
   bottom: 3px;
-  background-color: #dbe7ff;
+  background-color: #f2f1ff;
   transition: 0.2s;
   border-radius: 50%;
 }
 
 .switch input:checked + .slider {
-  background-color: #2d6cdf;
+  background-color: #5f50ff;
 }
 
 .switch input:checked + .slider:before {

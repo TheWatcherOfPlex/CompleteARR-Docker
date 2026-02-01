@@ -14,6 +14,10 @@ CompleteARR is an automated media librarian for **Sonarr** and **Radarr**. It ke
 ### 🎥 For Movies (Radarr)
 - **Film Engine**: Ensures movies stay in the correct root folder based on your quality profile → root folder mappings.
 
+### 🖥️ Web UI (Docker builds)
+- **Web dashboard** at `http://<host>:3005` for live run status, last-run summary, 7‑day stats, and an About panel.
+- **Settings editor** for Sonarr/Radarr/shared configuration (writes to your YAML files).
+
 ---
 
 ## 🚀 Getting Started (Windows / PowerShell)
@@ -98,6 +102,10 @@ CompleteARR can run in Docker behind gluetun on a schedule. The container runs C
 TZ=America/Chicago
 RUN_INTERVAL_SECONDS=3600
 ```
+
+### Web UI
+The Docker image includes a lightweight web UI at `http://<host>:3005`.
+Use it to view run status, last-run summaries, and 7‑day stats, plus edit your settings files.
 
 ### Build (on server)
 ```
@@ -218,6 +226,9 @@ For each **Quality Profile → Root Folder** mapping in your Radarr settings:
 1. It checks every movie with that quality profile.
 2. If the movie’s current root folder **does not match** the mapped root folder, it **moves the movie** to the correct folder.
 3. It logs every change so you can audit what moved and why.
+
+#### What “Movies already correct” means
+This counter tracks movies that were already in the expected root folder for their quality profile, so no move was required.
 
 ### 4) What it *doesn’t* touch
 - It does **not** download or search for media.

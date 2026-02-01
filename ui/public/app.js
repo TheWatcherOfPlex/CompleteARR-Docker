@@ -135,6 +135,8 @@ function App() {
   const radarrMoveVerify = radarrApi.data?.Behavior?.MoveVerification || {};
   const weeklyRadarr = weeklyStatsApi.data?.radarr || [];
   const weeklySonarr = weeklyStatsApi.data?.sonarr || [];
+  const latestRadarr = weeklyRadarr[0]?.summary || {};
+  const latestSonarr = weeklySonarr[0]?.summary || {};
 
   const weeklySummary = useMemo(() => {
     const combine = (items, keys) => {
@@ -185,6 +187,48 @@ function App() {
                 <div>${formatDate(statusApi.data.nextRun)}</div>
               </div>
             </div>
+          </div>
+          <div className="card">
+            <h2>Last Run Summary</h2>
+            <div className="grid">
+              <div>
+                <label>Radarr - Movies Checked</label>
+                <div>${latestRadarr.moviesChecked ?? 0}</div>
+              </div>
+              <div>
+                <label>Radarr - Movies Skipped</label>
+                <div>${latestRadarr.moviesSkipped ?? 0}</div>
+              </div>
+              <div>
+                <label>Radarr - Root Corrections</label>
+                <div>${latestRadarr.rootCorrections ?? 0}</div>
+              </div>
+              <div>
+                <label>Radarr - Errors</label>
+                <div>${latestRadarr.errors ?? 0}</div>
+              </div>
+              <div>
+                <label>Sonarr - Series Checked</label>
+                <div>${latestSonarr.seriesChecked ?? 0}</div>
+              </div>
+              <div>
+                <label>Sonarr - Promotions</label>
+                <div>${latestSonarr.promotions ?? 0}</div>
+              </div>
+              <div>
+                <label>Sonarr - Demotions</label>
+                <div>${latestSonarr.demotions ?? 0}</div>
+              </div>
+              <div>
+                <label>Sonarr - Root Corrections</label>
+                <div>${latestSonarr.rootCorrections ?? 0}</div>
+              </div>
+              <div>
+                <label>Sonarr - Errors</label>
+                <div>${latestSonarr.errors ?? 0}</div>
+              </div>
+            </div>
+            <p className="help">Latest run summary is pulled from the most recent log file.</p>
           </div>
           <div className="card">
             <h2>7-Day Activity Summary</h2>
@@ -578,7 +622,6 @@ function App() {
       <header>
         <div className="brand">
           <img className="brand-logo" src="/logo-header.png" alt="CompleteARR" />
-          <h1>CompleteARR Control Center</h1>
         </div>
         <nav>
           ${NAV_ITEMS.map((item) => html`
@@ -590,7 +633,6 @@ function App() {
       </header>
       <main>
         ${message && html`<div className="card"><p className="success">${message}</p></div>`}
-        <h2>${NAV_ITEMS.find((item) => item.key === view)?.label}</h2>
         ${content}
       </main>
     </div>

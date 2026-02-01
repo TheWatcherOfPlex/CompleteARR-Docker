@@ -532,7 +532,6 @@ function Update-MovieLocation {
     #>
     param(
         [pscustomobject]$Movie,
-        [hashtable]$ProfilesByName,
         [hashtable]$ProfilesById,
         [hashtable]$ProfileRootMappings
     )
@@ -631,10 +630,8 @@ try {
     $profiles = Get-RadarrQualityProfiles
     Write-Log 'DEBUG' ("Loaded {0} quality profiles from Radarr." -f $profiles.Count)
 
-    $profilesByName = @{}
     $profilesById = @{}
     foreach ($p in $profiles) {
-        $profilesByName[$p.name] = $p.id
         $profilesById[[int]$p.id] = $p.name
     }
 
@@ -662,7 +659,7 @@ try {
         $progressLabel = "[{0}/{1}]" -f $movieIndex, $movieCount
         $progressMessage = "{0} Processing movie '{1}' (ID={2})" -f $progressLabel, $movie.title, $movie.id
         Write-Log 'INFO' $progressMessage -HighlightText $progressLabel -HighlightColor 'DarkMagenta'
-        Update-MovieLocation -Movie $movie -ProfilesByName $profilesByName -ProfilesById $profilesById -ProfileRootMappings $profileRootMappings
+        Update-MovieLocation -Movie $movie -ProfilesById $profilesById -ProfileRootMappings $profileRootMappings
     }
 
     # SUMMARY

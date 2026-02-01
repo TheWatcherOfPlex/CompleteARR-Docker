@@ -90,6 +90,29 @@ function writeYaml(filePath, data) {
   fs.writeFileSync(filePath, content, "utf8");
 }
 
+function formatAbout(content) {
+  if (!content) {
+    return "";
+  }
+  return content
+    .replace(/```[\s\S]*?```/g, (block) => block.replace(/```[a-z]*\n?/gi, "").replace(/```/g, "").trim())
+    .replace(/^!\[.*?\]\(.*?\)\s*$/gm, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^---\s*$/gm, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/_([^_]+)_/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)]\([^\)]+\)/g, "$1")
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function requireConfig(config, type) {
   if (!config?.[type]?.Url || !config?.[type]?.ApiKey) {
     const missing = !config?.[type]?.Url ? "Url" : "ApiKey";
@@ -168,7 +191,7 @@ app.get("/api/about", (req, res) => {
     return res.json({ content: "README.md not found" });
   }
   const content = fs.readFileSync(readmePath, "utf8");
-  res.json({ content });
+  res.json({ content: formatAbout(content) });
 });
 
 app.get("/api/stats/weekly", (req, res) => {
