@@ -13,6 +13,9 @@ RUN pwsh -Command "Set-PSRepository -Name PSGallery -InstallationPolicy Trusted;
 COPY . /app
 
 RUN npm --prefix /app/ui install
+
+# Keep npm updated so build output stays clean and current.
+RUN npm install -g npm@11.8.0
 RUN chmod +x /app/docker/entrypoint.sh
 
 EXPOSE 3005
