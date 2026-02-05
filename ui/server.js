@@ -36,7 +36,10 @@ function writeStatus(status, startedAt, finishedAt, nextRun) {
     finishedAt: finishedAt || null,
     nextRun: nextRun || null
   };
-  fs.writeFileSync(STATUS_FILE, JSON.stringify(payload));
+  // Atomic write: write to temp file then rename to avoid partial reads.
+  const tmpFile = STATUS_FILE + ".tmp." + Date.now() + "." + Math.random().toString(36).slice(2);
+  fs.writeFileSync(tmpFile, JSON.stringify(payload));
+  fs.renameSync(tmpFile, STATUS_FILE);
 }
 
 function tryAcquireLock() {
@@ -98,37 +101,69 @@ function parseSummary(lines, markers) {
   return summary;
 }
 
+function parseLogTimestampFromName(name) {
+  const match = name.match(/_(\d{4}-\d{2}-\d{2})_(\d{4})\.log$/);
+  if (!match) return null;
+  const datePart = match[1];
+  const timePart = match[2];
+  const iso = `${datePart}T${timePart.slice(0, 2)}:${timePart.slice(2)}:00Z`;
+  const parsed = Date.parse(iso);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 function collectLogSummaries(prefix, markers, days = 7) {
-  if (!fs.existsSync(LOGS_ROOT)) {
+  // Only read from Full Logs to avoid base-folder conflicts.
+  const logDirs = [LOGS_ROOT]
+    .filter(Boolean)
+    .filter((dir) => fs.existsSync(dir));
+
+  if (!logDirs.length) {
     return [];
   }
-  const cutoff = Date.now() - days * MS_IN_DAY;
-  const files = fs
-    .readdirSync(LOGS_ROOT)
-    .filter((name) => name.startsWith(prefix) && name.endsWith(".log"))
-    .sort();
 
-  return files
-    .map((name) => {
-      const fullPath = path.join(LOGS_ROOT, name);
-      const stats = fs.statSync(fullPath);
-      if (stats.mtimeMs < cutoff) {
+  const cutoff = Date.now() - days * MS_IN_DAY;
+  const fileEntries = logDirs.flatMap((dir) => {
+    const names = fs
+      .readdirSync(dir)
+      .filter((name) => name.startsWith(prefix) && name.endsWith(".log"));
+    return names.map((name) => ({ name, dir, fullPath: path.join(dir, name) }));
+  });
+
+  const unique = new Map();
+  fileEntries.forEach((entry) => {
+    if (!unique.has(entry.fullPath)) {
+      unique.set(entry.fullPath, entry);
+    }
+  });
+
+  return Array.from(unique.values())
+    .map((entry) => {
+      const stats = fs.statSync(entry.fullPath);
+      const parsedTimestamp = parseLogTimestampFromName(entry.name) || stats.mtimeMs;
+      if (parsedTimestamp < cutoff) {
         return null;
       }
-      const raw = fs.readFileSync(fullPath, "utf8");
+      const raw = fs.readFileSync(entry.fullPath, "utf8");
       const lines = raw.split(/\r?\n/);
       const summary = parseSummary(lines, markers);
       if (!Object.keys(summary).length) {
         return null;
       }
       return {
-        file: name,
-        timestamp: stats.mtime.toISOString(),
+        file: entry.name,
+        timestamp: new Date(parsedTimestamp).toISOString(),
         summary
       };
     })
     .filter(Boolean)
     .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+}
+
+function normalizeStatsResponse(payload) {
+  return {
+    radarr: payload.radarr || [],
+    sonarr: payload.sonarr || []
+  };
 }
 
 function writeYaml(filePath, data) {
@@ -183,28 +218,83 @@ async function fetchArrOptions(config, type) {
   };
 }
 
-app.get("/api/status", (req, res) => {
+function readStatusFile() {
   if (!fs.existsSync(STATUS_FILE)) {
-    return res.json({ status: "unknown", startedAt: null, finishedAt: null, nextRun: null });
+    return null;
   }
-  const raw = fs.readFileSync(STATUS_FILE, "utf8");
-  return res.json(JSON.parse(raw));
+  const raw = fs.readFileSync(STATUS_FILE, "utf8").trim();
+  if (!raw) {
+    return null;
+  }
+  return JSON.parse(raw);
+}
+
+function ensureIdleStatus() {
+  writeStatus("idle", null, null, null);
+  return { status: "idle", startedAt: null, finishedAt: null, nextRun: null };
+}
+
+app.get("/api/status", (req, res) => {
+  // Failsafe: if status says "running" but child process is gone and lock is released, force idle
+  const lockExists = fs.existsSync(RUN_LOCK_DIR);
+  const childRunning = global.runningChild && !global.runningChild.killed;
+
+  try {
+    const data = readStatusFile();
+
+    if (!data) {
+      return res.json(ensureIdleStatus());
+    }
+
+    // If status says running but child is gone, clear lock + reset to idle.
+    if (data.status === "running" && !childRunning) {
+      console.log("[status] Failsafe: detected stuck 'running' status, resetting to idle");
+      if (lockExists) {
+        releaseLock();
+      }
+      writeStatus("idle", data.startedAt, new Date().toISOString(), data.nextRun);
+      return res.json({ status: "idle", startedAt: data.startedAt, finishedAt: new Date().toISOString(), nextRun: data.nextRun });
+    }
+
+    // If lock exists but status says idle and no child, clear stale lock
+    if (data.status !== "running" && lockExists && !childRunning) {
+      releaseLock();
+    }
+
+    return res.json(data);
+  } catch (error) {
+    console.error("Failed to read/parse status file:", error.message);
+    return res.json(ensureIdleStatus());
+  }
 });
 
 app.post("/api/run-now", (req, res) => {
+  let statusData = null;
+  try {
+    statusData = readStatusFile();
+  } catch (error) {
+    statusData = null;
+  }
+
+  const lockExists = fs.existsSync(RUN_LOCK_DIR);
+  const childRunning = global.runningChild && !global.runningChild.killed;
+
+  if (statusData?.status === "running" && !childRunning) {
+    releaseLock();
+    statusData = { ...statusData, status: "idle", finishedAt: new Date().toISOString() };
+    writeStatus("idle", statusData.startedAt, statusData.finishedAt, statusData.nextRun);
+  }
+
+  // If lock exists but we are idle and no child is running, clear stale lock.
+  if (lockExists && (!statusData || statusData.status !== "running") && !childRunning) {
+    releaseLock();
+  }
+
   if (!tryAcquireLock()) {
     return res.status(409).json({ error: "Run already in progress." });
   }
 
-  let nextRun = null;
-  if (fs.existsSync(STATUS_FILE)) {
-    try {
-      const current = JSON.parse(fs.readFileSync(STATUS_FILE, "utf8"));
-      nextRun = current?.nextRun || null;
-    } catch (error) {
-      nextRun = null;
-    }
-  }
+  let nextRun = statusData?.nextRun || null;
 
   const startedAt = new Date().toISOString();
   writeStatus("running", startedAt, null, nextRun);
@@ -220,19 +310,49 @@ app.post("/api/run-now", (req, res) => {
     }
   );
 
+  // Store child process ID for stopping
+  global.runningChild = child;
+
   child.on("exit", () => {
+    global.runningChild = null;
     const finishedAt = new Date().toISOString();
     writeStatus("idle", startedAt, finishedAt, nextRun);
     releaseLock();
   });
 
   child.on("error", (error) => {
+    global.runningChild = null;
     const finishedAt = new Date().toISOString();
     writeStatus("idle", startedAt, finishedAt, nextRun);
     releaseLock();
   });
 
   return res.json({ ok: true });
+});
+
+app.post("/api/stop", (req, res) => {
+  if (!global.runningChild) {
+    return res.status(409).json({ error: "No run in progress." });
+  }
+
+  try {
+    global.runningChild.kill("SIGTERM");
+    return res.json({ ok: true, message: "Stop signal sent." });
+  } catch (error) {
+    return res.status(500).json({ error: "Failed to stop: " + error.message });
+  }
+});
+
+app.post("/api/reset-status", (req, res) => {
+  // Force reset status to idle and clear lock (for when runs get stuck)
+  try {
+    writeStatus("idle", null, null, null);
+    releaseLock();
+    global.runningChild = null;
+    return res.json({ ok: true, message: "Status reset." });
+  } catch (error) {
+    return res.status(500).json({ error: "Failed to reset: " + error.message });
+  }
 });
 
 app.get("/api/settings/sonarr", (req, res) => {
@@ -307,10 +427,7 @@ app.get("/api/stats/weekly", (req, res) => {
   const radarr = collectLogSummaries("CompleteARR_RADARR_FilmEngine", radarrMarkers, 7);
   const sonarr = collectLogSummaries("CompleteARR_SONARR_SeriesEngine", sonarrMarkers, 7);
 
-  res.json({
-    radarr,
-    sonarr
-  });
+  res.json(normalizeStatsResponse({ radarr, sonarr }));
 });
 
 app.get("*", (req, res) => {

@@ -54,6 +54,14 @@ function Initialize-CompleteARRLogPaths {
     try { New-Item -Path $fullLogFile -ItemType File -Force | Out-Null } catch { }
     try { New-Item -Path $errorLogFile -ItemType File -Force | Out-Null } catch { }
 
+    # Stamp log paths so troubleshooting can always confirm file locations.
+    try {
+        Add-Content -LiteralPath $fullLogFile -Value ("[LOG] Full log file   : {0}" -f $fullLogFile)
+        Add-Content -LiteralPath $fullLogFile -Value ("[LOG] Error log file  : {0}" -f $errorLogFile)
+        Add-Content -LiteralPath $fullLogFile -Value ("[LOG] Logs base       : {0}" -f $logsBase)
+        Add-Content -LiteralPath $fullLogFile -Value ("[LOG] Timestamp       : {0}" -f $timestamp)
+    } catch { }
+
     return [PSCustomObject]@{
         LogsBase = $logsBase
         FullLogsDir = $fullLogs
