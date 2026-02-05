@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env sh
+set -eu
 
 RUN_INTERVAL_SECONDS=${RUN_INTERVAL_SECONDS:-3600}
 LOGS_BASE=${LOGS_BASE:-/app/CompleteARR_Logs}
