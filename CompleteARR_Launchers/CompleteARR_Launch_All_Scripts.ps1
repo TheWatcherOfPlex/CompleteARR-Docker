@@ -159,10 +159,10 @@ Write-Host ""
 $radarrFilmEngineSummary = $null
 try {
     if (Test-Path -LiteralPath $RadarrConfigPath) {
-        $radarrFilmEngineSummary = & $RadarrEnginePath -ConfigPath $RadarrConfigPath
+        $radarrFilmEngineSummary = & $RadarrEnginePath -ConfigPath $RadarrConfigPath | Select-Object -Last 1
     }
     else {
-        $radarrFilmEngineSummary = & $RadarrEnginePath
+        $radarrFilmEngineSummary = & $RadarrEnginePath | Select-Object -Last 1
     }
     Write-Host ""
     Write-Host "✅ Radarr Film Engine completed successfully!" -ForegroundColor Green
@@ -204,10 +204,10 @@ Write-Host ""
 $sonarrSeriesEngineSummary = $null
 try {
     if (Test-Path -LiteralPath $SonarrConfigPath) {
-        $sonarrSeriesEngineSummary = & $SonarrEnginePath -ConfigPath $SonarrConfigPath
+        $sonarrSeriesEngineSummary = & $SonarrEnginePath -ConfigPath $SonarrConfigPath | Select-Object -Last 1
     }
     else {
-        $sonarrSeriesEngineSummary = & $SonarrEnginePath
+        $sonarrSeriesEngineSummary = & $SonarrEnginePath | Select-Object -Last 1
     }
     Write-Host ""
     Write-Host "✅ Sonarr Series Engine completed successfully!" -ForegroundColor Green
